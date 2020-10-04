@@ -132,7 +132,7 @@ static uint64 (*syscalls[])(void) = {
 };
 
 static char* syscalls_name[] = {
-  0,
+  "",
   "fork",
   "exit",
   "wait",
