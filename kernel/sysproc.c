@@ -95,3 +95,42 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+int 
+sys_trace(void)
+{
+  int mask;
+  if (argint(0, &mask) < 0) {
+    return -1;
+  }
+
+  // int SYS_CALL_BITWISE [] = {
+  //   0x2,        //fork 
+  //   0x4,        //exit
+  //   0x8,        //wait 
+  //   0x10,       //pipe 
+  //   0x20,       //read 
+  //   0x40,       //kill 
+  //   0x80,       //exec 
+  //   0x100,      //fstat 
+  //   0x200,      //chdir 
+  //   0x400,      //dup 
+  //   0x800,      //getpid 
+  //   0x1000,     //sbrk 
+  //   0x2000,     //sleep 
+  //   0x4000,     //uptime 
+  //   0x8000,     //open 
+  //   0x10000,    //write 
+  //   0x20000,    //mknod 
+  //   0x40000,    //unlink 
+  //   0x80000,    //link 
+  //   0x100000,   //mkdir 
+  //   0x200000,   //close 
+  //   0x400000,   //trace
+  // };
+
+  struct proc* newProc = myproc();
+  newProc ->trace_mask = mask;
+
+  return 0;
+}
