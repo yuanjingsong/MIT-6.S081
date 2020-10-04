@@ -694,3 +694,27 @@ procdump(void)
     printf("\n");
   }
 }
+
+
+// Collect the not unused process 
+uint64 
+collect_notunused_process() {
+  static char *states[] = {
+    [UNUSED]    "unused",
+    [SLEEPING]  "sleep ",
+    [RUNNABLE]  "runble",
+    [RUNNING]   "run   ",
+    [ZOMBIE]    "zombie"
+  };
+  uint64 nproc = 0;
+  struct proc *p;
+
+  for (p = proc; p < &proc[NPROC]; p++) {
+    if (p->state != UNUSED) {
+      if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+        nproc ++;
+    }
+  }
+
+  return nproc;
+}
