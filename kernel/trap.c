@@ -70,21 +70,26 @@ usertrap(void)
   } else if (r_scause() == 13 || r_scause() == 15) {
     // Handle the page fault exception.
     uint64 va = r_stval();
-    uint64 copy_mem = (uint64)kalloc();
 
-    if (copy_mem == 0) {
-      p -> killed = -1;
-    }else {
-      memset((void*) copy_mem, 0, PGSIZE);
-      va = PGROUNDDOWN(va);
-      if (mappages(p->pagetable, va, PGSIZE, copy_mem, PTE_W|PTE_R|PTE_U) !=0 ) {
-        kfree((void*)copy_mem);
+    if (va > p->sz || va <  PGROUNDDOWN(p->trapframe->sp)) {
+      // virtual memory address higher than sbrk()
+      // Or invalid page below the user stack
+      // p->trapframe->sp points to the user guard page address.
+      p->killed = -1;
+    } else {
+      uint64 copy_mem = (uint64)kalloc();
+
+      if (copy_mem == 0) {
         p -> killed = -1;
+      }else {
+        memset((void*) copy_mem, 0, PGSIZE);
+        va = PGROUNDDOWN(va);
+        if (mappages(p->pagetable, va, PGSIZE, copy_mem, PTE_W|PTE_R|PTE_U) !=0 ) {
+          kfree((void*)copy_mem);
+          p -> killed = -1;
+        }
       }
     }
-
-
-
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());

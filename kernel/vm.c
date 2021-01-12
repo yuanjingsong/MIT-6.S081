@@ -5,6 +5,8 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "spinlock.h"
+#include "proc.h"
 
 /*
  * the kernel's page table.
@@ -101,10 +103,31 @@ walkaddr(pagetable_t pagetable, uint64 va)
     return 0;
 
   pte = walk(pagetable, va, 0);
-  if(pte == 0)
-    return 0;
-  if((*pte & PTE_V) == 0)
-    return 0;
+  // Handle when va is not valid or not exist 
+  // which means the it should alloc new page for the current process
+  // It should do the similar thing in trap.c
+
+  if (pte == 0 || ((*pte & PTE_V) == 0)) {
+    struct proc* p = myproc();
+
+    if (va >= p -> sz)
+      return 0;
+
+    uint64 copy_mem = (uint64) kalloc();
+
+    if (copy_mem == 0) {
+      return 0;
+    }
+    memset((void*)copy_mem, 0, PGSIZE);
+    uint64 a = PGROUNDDOWN(va);
+    if (mappages(p->pagetable, a, PGSIZE, copy_mem, PTE_W|PTE_R|PTE_U) != 0 )  {
+      kfree((void*) copy_mem);
+      return 0;
+    }
+    pte = walk(pagetable, va, 0);
+  }
+
+
   if((*pte & PTE_U) == 0)
     return 0;
   pa = PTE2PA(*pte);
@@ -317,9 +340,11 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
-      panic("uvmcopy: pte should exist");
+      //panic("uvmcopy: pte should exist");
+      continue;
     if((*pte & PTE_V) == 0)
-      panic("uvmcopy: page not present");
+      //panic("uvmcopy: page not present");
+      continue;
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)
