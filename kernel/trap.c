@@ -53,9 +53,7 @@ cowfault(pagetable_t pagetable, uint64 va)
   }
 
   memmove((void*)pa2, (void*)pa1, PGSIZE);
-
   kfree((void*)pa1);
-
   *pte = PA2PTE(pa2) | PTE_V | PTE_U | PTE_R | PTE_W | PTE_X;
 
   return 0;
@@ -100,6 +98,7 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else if (r_scause() == 0xf) {
+    // page fault occurs
     if (cowfault(p->pagetable, r_stval()) < 0) 
       p->killed = -1;
 
