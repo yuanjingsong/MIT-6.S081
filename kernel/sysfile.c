@@ -316,6 +316,49 @@ sys_open(void)
     }
   }
 
+  if (ip->type == T_SYMLINK && !(omode & O_NOFOLLOW)) {
+    char realPath[MAXPATH];
+    int iter_times = 0;
+
+    while (ip->type == T_SYMLINK && iter_times < 10) {
+      int len = 0;
+      readi(ip, 0, (uint64)&len, 0, sizeof(int));
+      iunlockput(ip);
+
+      if (len > MAXPATH) {
+        panic("Too long path name");
+      }
+
+      readi(ip, 0, (uint64)realPath, sizeof(int), len+1);
+
+      if ((ip= namei(realPath)) == 0) {
+        end_op();
+        return -1;
+      }
+
+      ilock(ip);
+      if (ip->type == T_DIR && omode != O_RDONLY) {
+        iunlockput(ip);
+        end_op();
+        return -1;
+      }
+
+      if (ip->type == T_DEVICE && (ip->major<0 || ip->major >= NDEV)) {
+        iunlockput(ip);
+        end_op();
+        return -1;
+      }
+
+      iter_times ++;
+    }
+
+    if (iter_times >= 10) {
+      iunlockput(ip);
+      end_op();
+      return -1;
+    }
+  }
+
   if(ip->type == T_DEVICE && (ip->major < 0 || ip->major >= NDEV)){
     iunlockput(ip);
     end_op();
@@ -484,3 +527,31 @@ sys_pipe(void)
   }
   return 0;
 }
+
+uint64
+sys_symlink(void) 
+{
+  char  new[MAXPATH], old[MAXPATH];
+
+  if (argstr(0, old, MAXPATH) < 0 || argstr(1, new, MAXPATH) < 0)
+    return -1;
+
+  begin_op();
+  struct inode* isymlink;
+
+  if ((isymlink = create(new, T_SYMLINK, 0, 0)) == 0){
+    end_op();
+    return -1;
+  }
+  
+  int len = strlen(old);
+  writei(isymlink, 0, (uint64)&len, 0, sizeof(int));
+  writei(isymlink, 0, (uint64)old, sizeof(int), len+1);
+  iupdate(isymlink);
+  iunlockput(isymlink);
+
+  end_op();
+  return 0;
+}
+
+
